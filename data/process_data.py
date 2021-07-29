@@ -70,8 +70,8 @@ def save_data(df, database_filename):
             - str file path of new db
         Output: None
     '''
-    # create new sql engine object 
-    engine = create_engine('sqlite:///InsertDatabaseName.db')
+    # create new sql engine object 'sqlite:///InsertDatabaseName.db'
+    engine = create_engine(database_filename)
     # creates new table if not exists, and inserts all records from df_copy to new table
     # excluding index of dataframe
     df_copy.to_sql('InsertTableName',engine,index=False)
