@@ -24,7 +24,7 @@ def load_data(messages_filepath, categories_filepath):
 
 
 def clean_data(df):
-     '''
+    '''
         Cleans dataframe
         Inputs:
             - Dataframe
@@ -71,10 +71,10 @@ def save_data(df, database_filename):
         Output: None
     '''
     # create new sql engine object 'sqlite:///InsertDatabaseName.db'
-    engine = create_engine(database_filename)
+    engine = create_engine(f'sqlite:///{database_filename}')
     # creates new table if not exists, and inserts all records from df_copy to new table
     # excluding index of dataframe
-    df_copy.to_sql('InsertTableName',engine,index=False)
+    df.to_sql('InsertTableName',engine,index=False)
 
 
 def main():

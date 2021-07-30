@@ -1,4 +1,5 @@
 # import libraries
+import sys
 import pandas as pd
 import numpy as np
 import sqlite3
@@ -11,7 +12,7 @@ from nltk.stem.wordnet import WordNetLemmatizer
 from sklearn.model_selection import train_test_split
 #from sklearn.metrics import accuracy_score
 #from sklearn.metrics import confusion_matrix
-#from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report
 #from sklearn import model_selection
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
@@ -27,17 +28,17 @@ nltk.download(['punkt', 'wordnet', 'averaged_perceptron_tagger','stopwords'])
 
 
 def load_data(database_filepath):
-     """
-    Loads data from sqllite db 
-    Args:
-    database_filepath str: path to db
-    Returns:
-    X dataframe: The independent variables for model development
-    Y dataframe: Class labels
-    y_category list: list of str, representing the unique columns from the Y dataframe
+    """
+        Loads data from sqllite db 
+        Args:
+        database_filepath str: path to db
+        Returns:
+        X dataframe: The independent variables for model development
+        Y dataframe: Class labels
+        y_category list: list of str, representing the unique columns from the Y dataframe
     """
     # load data from database 'sqlite:///InsertDatabaseName.db'
-    engine = create_engine(database_filepath)
+    engine = create_engine(f'sqlite:///{database_filepath}')
     # read from SQL table with conn = engine
     df = pd.read_sql("Select * From InsertTableName",engine)
     df_copy = df.copy()
@@ -74,25 +75,21 @@ def tokenize(text):
 
 def build_model():
     """
-    Creates Pipeline obj to support model development, and tunes model via GridSearchCV
-    Args:
-    None
-    Returns:
-    cv GridSearchCV: GridSearchCV object
+        Creates Pipeline obj to support model development, and tunes model via GridSearchCV
+        Args:
+        None
+        Returns:
+        cv GridSearchCV: GridSearchCV object
     """
     # define pipeline
     pipeline = Pipeline([
-        ('vect',CountVectorizer(tokenizer=tokenize)),
+        ('vect',CountVectorizer(tokenizer=tokenize, ngram_range=(1,2))),
         ('tfidf',TfidfTransformer()),
         ('clf', MultiOutputClassifier(RandomForestClassifier()))
     ])
    
-   # init params
-   params = {
-       'vect__ngram_range':[(1,2),(1,3)], 
-       'vect__min_df':[5,10,20], 
-       'vect__max_df':[.90,.95],
-    }
+    # init params 'vect__ngram_range':[(1,2),(1,3)],
+    params = {'vect__min_df':[0.05,.10], 'vect__max_df':[.90,.95],}
 
     #
     cv = GridSearchCV(pipeline,param_grid=params,cv=3, verbose=3)
@@ -129,13 +126,12 @@ def evaluate_model(y_test,y_pred):
 
 
 def save_model(model, model_filepath):
-     """
+    """
         Saves the model to a Python pickle file    
         Args:
         model: Trained model
         model_filepath: Filepath to save the model
     """
-
     # save model to pickle file
     #pickle.dump(model, open(model_filepath, 'wb',encoding='UTF-8'))
     with open(model_filepath, 'wb') as f:
@@ -156,7 +152,7 @@ def main():
         model.fit(X_train, Y_train)
         y_pred = model.predict(X_test)
         print('Evaluating model...')
-        evaluate_model(Y_test,pd.DataFrame(y_pred,columns=y_category))
+        evaluate_model(Y_test,pd.DataFrame(y_pred,columns=category_names))
 
         print('Saving model...\n    MODEL: {}'.format(model_filepath))
         save_model(model, model_filepath)
