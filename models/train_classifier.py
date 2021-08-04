@@ -17,6 +17,9 @@ from sklearn.metrics import classification_report
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.ensemble import RandomForestClassifier 
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.ensemble import VotingClassifier
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
@@ -41,9 +44,13 @@ def load_data(database_filepath):
     engine = create_engine(f'sqlite:///{database_filepath}')
     # read from SQL table with conn = engine
     df = pd.read_sql("Select * From InsertTableName",engine)
+    # create copy
     df_copy = df.copy()
+    # set X to message column
     X = df_copy['message']
+    # drop unused columns
     Y = df_copy.drop(columns=['message', 'genre', 'id', 'original'],axis=1)
+    # convert columns of Y to list
     y_category = Y.columns.tolist()
     
     return X, Y,y_category
@@ -81,19 +88,16 @@ def build_model():
         Returns:
         cv GridSearchCV: GridSearchCV object
     """
+    # init RandomForest classifier with 'balanced' class weight to control for class inbalances
+    rf = RandomForestClassifier(class_weight='balanced')
     # define pipeline
     pipeline = Pipeline([
-        ('vect',CountVectorizer(tokenizer=tokenize, ngram_range=(1,2))),
+        ('vect',CountVectorizer(tokenizer=tokenize, ngram_range=(1,2),min_df=0.05,max_df=.95)),
         ('tfidf',TfidfTransformer()),
-        ('clf', MultiOutputClassifier(RandomForestClassifier()))
+        ('clf',MultiOutputClassifier(rf))
     ])
-   
-    # init params 'vect__ngram_range':[(1,2),(1,3)],
-    params = {'vect__min_df':[0.05,.10], 'vect__max_df':[.90,.95],}
 
-    #
-    cv = GridSearchCV(pipeline,param_grid=params,cv=3, verbose=3)
-    return cv
+    return pipeline
 
 
 def evaluate_model(y_test,y_pred):
@@ -107,8 +111,9 @@ def evaluate_model(y_test,y_pred):
     '''
     # init empty dataFrame
     report = pd.DataFrame ()
+    # loop through each column in Y matrix
     for col in y_test.columns.tolist():
-        # create classifcation report
+        # create classifcation report for each y in Y
         class_report_dict = classification_report(y_true = y_test.loc[:,col],y_pred = y_pred.loc[:,col],output_dict = True)
         # convert dict to df
         df_eval = pd.DataFrame.from_dict(class_report_dict)
@@ -121,6 +126,7 @@ def evaluate_model(y_test,y_pred):
         avg_df_eval = avg_df_eval.transpose()
         # append new item
         report = report.append(avg_df_eval, ignore_index=True)
+    # set index of new df to columns in Y
     report.index = y_test.columns
     return report 
 
@@ -143,18 +149,26 @@ def main():
         database_filepath, model_filepath = sys.argv[1:]
         print('Loading data...\n    DATABASE: {}'.format(database_filepath))
         X, Y, category_names = load_data(database_filepath)
+        # remove Y columns that are all 0
+        Y = Y.loc[:,(Y!=0).any(axis=0)]
+        category_names = [y for y in category_names if y in Y.columns]
+        # split data into training and testing
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
         
         print('Building model...')
         model = build_model()
         
         print('Training model...')
+        # fit model
         model.fit(X_train, Y_train)
+        # use fitted model to test predictions on testing data
         y_pred = model.predict(X_test)
         print('Evaluating model...')
+        # eval model
         evaluate_model(Y_test,pd.DataFrame(y_pred,columns=category_names))
 
         print('Saving model...\n    MODEL: {}'.format(model_filepath))
+        # save model
         save_model(model, model_filepath)
 
         print('Trained model saved!')

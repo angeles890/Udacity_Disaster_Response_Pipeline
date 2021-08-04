@@ -16,7 +16,7 @@ def load_data(messages_filepath, categories_filepath):
     # read in csv
     messages = pd.read_csv(messages_filepath)
     categories = pd.read_csv(categories_filepath)
-    # merge the two dataframes
+    # merge the two dataframes on id
     df = messages.merge(categories, how='inner',left_on = 'id', right_on = 'id')
     
     return df
@@ -74,7 +74,7 @@ def save_data(df, database_filename):
     engine = create_engine(f'sqlite:///{database_filename}')
     # creates new table if not exists, and inserts all records from df_copy to new table
     # excluding index of dataframe
-    df.to_sql('InsertTableName',engine,index=False)
+    df.to_sql('InsertTableName',engine,index=False,if_exists = 'replace')
 
 
 def main():
@@ -93,7 +93,7 @@ def main():
         save_data(df, database_filepath)
         
         print('Cleaned data saved to database!')
-    
+        print(database_filepath)
     else:
         print('Please provide the filepaths of the messages and categories '\
               'datasets as the first and second argument respectively, as '\
