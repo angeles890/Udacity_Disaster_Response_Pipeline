@@ -22,6 +22,7 @@ from sklearn.svm import SVC
 from sklearn.ensemble import VotingClassifier
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import fbeta_score, make_scorer
 from sklearn.pipeline import Pipeline
 import joblib
 import pickle
@@ -92,12 +93,61 @@ def build_model():
     rf = RandomForestClassifier(class_weight='balanced')
     # define pipeline
     pipeline = Pipeline([
-        ('vect',CountVectorizer(tokenizer=tokenize, ngram_range=(1,2),min_df=0.05,max_df=.95)),
+        ('vect',CountVectorizer(tokenizer=tokenize,min_df=0.05)),
         ('tfidf',TfidfTransformer()),
         ('clf',MultiOutputClassifier(rf))
     ])
+    
+    # test different values for hyper params
+    parameters = {  'vect__max_df': (0.90, .95),
+                  'vect__ngram_range': [(1,2)],
+                  'clf__estimator__min_samples_split': [2, 5]
+      }
+    # fbeta_score scoring object using make_scorer()
+    scorer = make_scorer (f1_scorer_eval)
+    cv = GridSearchCV (pipeline, param_grid= parameters, scoring = scorer, verbose =5,cv=4 )
 
-    return pipeline
+    return cv
+
+
+def f1_scorer_eval (y_true, y_pred):
+    """A function that measures mean of F1 for all classes
+       Returns an average value of F1 for sake of evaluation whether model predicts better or worse in GridSearchCV
+    """
+    #converting y_pred from np.array to pd.dataframe
+    #keep in mind that y_pred should a pd.dataframe rather than np.array
+    y_pred = pd.DataFrame (y_pred, columns = y_true.columns)
+
+
+    #instantiating a dataframe
+    report = pd.DataFrame ()
+
+    for col in y_true.columns:
+        #returning dictionary from classification report
+        class_dict = classification_report (output_dict = True, y_true = y_true.loc [:,col], y_pred = y_pred.loc [:,col])
+
+        #converting from dictionary to dataframe
+        eval_df = pd.DataFrame (pd.DataFrame.from_dict (class_dict))
+
+        #dropping unnecessary columns
+        eval_df.drop(['macro avg', 'weighted avg'], axis =1, inplace = True)
+
+        #dropping unnecessary row "support"
+        eval_df.drop(index = 'support', inplace = True)
+
+        #calculating mean values
+        av_eval_df = pd.DataFrame (eval_df.transpose ().mean ())
+
+        #transposing columns to rows and vice versa
+        av_eval_df = av_eval_df.transpose ()
+
+        #appending result to report df
+        report = report.append (av_eval_df, ignore_index = True)
+
+    #returining mean value for all classes. since it's used for GridSearch we may use mean
+    #as the overall value of F1 should grow.
+    return report ['f1-score'].mean ()
+
 
 
 def evaluate_model(y_test,y_pred):
@@ -141,7 +191,7 @@ def save_model(model, model_filepath):
     # save model to pickle file
     #pickle.dump(model, open(model_filepath, 'wb',encoding='UTF-8'))
     with open(model_filepath, 'wb') as f:
-        pickle.dump(model, f)
+        pickle.dump(model.best_estimator_, f)
 
 
 def main():
