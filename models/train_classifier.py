@@ -26,11 +26,41 @@ from sklearn.metrics import fbeta_score, make_scorer
 from sklearn.pipeline import Pipeline
 import joblib
 import pickle
+import subprocess
+import sys
+import ast
+
+
 nltk.download(['punkt', 'wordnet', 'averaged_perceptron_tagger','stopwords'])
 #!conda install scikit-learn=0.20
 # in terminal pip install --upgrade scikit-learn
 
+# certain attributes are not availiable in older module versions
+def isOutDated(name):
+    '''
+    Args:
+    - name str: name of package to check if out of date
+    Output:
+        Boolean
+    '''
+    print(f'*** Checking if {name} is out of date, please wait ***')
+    reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'list','--outdated'])
+    outdated_packages = [r.decode().split('==')[0] for r in reqs.split()]
+    return True if name in outdated_packages else False
 
+
+def updateModule(name):
+    '''
+    Args:
+    - name str: name of package to update
+    Output:
+    None
+    '''
+    print(f'*** Updating {name} to latest version ***')
+    subprocess.run([sys.executable, '-m', 'pip', 'install','--upgrade', '{}'.format(name)])
+    #current_version = response[response.find('Version:')+8:]
+    print(f'*** Succesfully updated {name} ***')
+    
 def load_data(database_filepath):
     """
         Loads data from sqllite db 
@@ -129,8 +159,9 @@ def f1_scorer_eval (y_true, y_pred):
 
     for col in y_true.columns:
         #returning dictionary from classification report
-        class_dict = classification_report (output_dict = True, y_true = y_true.loc [:,col], y_pred = y_pred.loc [:,col])
-
+        class_dict = classification_report (y_true = y_true.loc [:,col], y_pred = y_pred.loc [:,col])
+        # convert dictionary string to dictionary
+        class_dict = ast.literal_eval(class_dict)
         #converting from dictionary to dataframe
         eval_df = pd.DataFrame (pd.DataFrame.from_dict (class_dict))
 
@@ -169,7 +200,9 @@ def evaluate_model(y_test,y_pred):
     # loop through each column in Y matrix
     for col in y_test.columns.tolist():
         # create classifcation report for each y in Y
-        class_report_dict = classification_report(y_true = y_test.loc[:,col],y_pred = y_pred.loc[:,col],output_dict = True)
+        class_report_dict = classification_report(y_true = y_test.loc[:,col],y_pred = y_pred.loc[:,col])
+        # convert dictionary string to dictionary
+        class_report_dict = ast.literal_eval(class_report_dict)
         # convert dict to df
         df_eval = pd.DataFrame.from_dict(class_report_dict)
         # remove unused columns
@@ -206,6 +239,14 @@ def save_model(model, model_filepath):
 
 def main():
     if len(sys.argv) == 3:
+        # check and update scikit-learn if needed
+        if isOutDated('scikit-learn'):
+            # must update scikit-learn else will get an error due to invalid argument of 'output_dict' 
+            # for classification_report as it does not exists pre-scikit-learn 0.2
+            print('*** OUTDATED VERSION OF SCIKIT-LEARN ***')
+            updateModule('scikit-learn')
+            
+        
         database_filepath, model_filepath = sys.argv[1:]
         print('Loading data...\n    DATABASE: {}'.format(database_filepath))
         X, Y, category_names = load_data(database_filepath)
