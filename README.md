@@ -17,6 +17,17 @@ This project consist of 3 core Python files
 2. train_classifier.py - Contains the code needed to train, assess, and save a machine learning model built on the cleaned text data created by process_data.py. This file contains the work needed to support text parsing and feature extraction from text to support classification operations. A random forest classifier is trained on the tokenized data. The final model is saved as a pickle file to be called by 'run.py'. NOTE, due to size limitations on GitHub, the actual pickle file was not committed; however, proper running of the scripts as outlined in the 'Run' section below, will create all necessary artifacts to run the web-app and generate predictions.
 3. run.py - This file, largely created by Udacity, contains the code needed to render the web app and handle user requests to the classification API (pickled file created by 'train_classifier.py').
 
+### Screen Shots
+Text box where users can type new text for classification
+![image](https://user-images.githubusercontent.com/8869940/129773769-d629984e-c9db-4e28-84a4-f66143ab126d.png)
+
+Distribution of message genre
+![image](https://user-images.githubusercontent.com/8869940/129773859-7c62c46e-b483-421b-b940-1097cf69ad0a.png)
+
+Distribution of categories for the training data
+![image](https://user-images.githubusercontent.com/8869940/129776682-7e73f965-09b7-41fb-9fa4-f2e902587c1e.png)
+
+
 ### Requirements 
 <ul>
     <li>Python 3.6</li>
@@ -32,6 +43,7 @@ This project consist of 3 core Python files
     <li>Matplotlib</li>
     <li>Plotly</li>
     <li>Ast</li>
+    <li>Subprocess</li>
 </ul>
 
 
