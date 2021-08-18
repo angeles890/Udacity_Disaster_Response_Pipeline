@@ -59,7 +59,43 @@ def clean_data(df):
     # remove duplicates
     df_copy.drop_duplicates(inplace=True)
     
+    # clean df to ensure only binary values
+    # array to hold columns that should contain 2-values to support binary classification
+    binary_columns = [c for c in df_copy.columns if c not in ['id','message','original','genre']]
+    # list of allowed values
+    allowed_vals = [0,1]
+    # init list to hold columns that need more processesing
+    require_attention_col = []
+    # col that are not binary or have vals not allowed
+    for col in binary_columns:
+        # get set of unique vals in 'col'
+        col_val_set = set(df_copy[col].unique().tolist())
+        # get the difference in values found in 'col' and list of allowed values
+        set_diff = col_val_set.difference(allowed_vals)
+        # the difference should be 0 else, we need to clean the df based on the column
+        if len(set_diff)>0:
+            require_attention_col.append(col)
+    # loop through each column that requires cleaning
+    for col in require_attention_col:
+        # call cleaning function and store result
+        df_copy = filter_df_on_column(df_copy,col,allowed_vals)
     return df_copy
+
+def filter_df_on_column(df,col,allowed_vals):
+    '''
+        Function will filter a dataframe based on provided column and return only rows that are in the allowed values list.
+        Input:
+        - df DataFrame: The dataframe to be filtered
+        - col str: The name of the column that the function will review values for
+        - allowed_vals List: A list containing the allowed values that can exist in col
+        
+        Return: 
+        Dataframe consisting of records where the value in col exists within the allowed_vals list
+    '''
+    local_df = df.copy()
+    local_df = local_df[local_df[col].isin(allowed_vals)]
+    
+    return local_df
     
     
 def save_data(df, database_filename):
